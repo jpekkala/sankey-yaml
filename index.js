@@ -2,6 +2,7 @@ const { JSDOM } = require('jsdom');
 const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
 const fs = require('fs');
+const jsYaml = require('js-yaml')
 
 const WIDTH = 800;
 const HEIGHT = 800;
@@ -18,25 +19,91 @@ function main() {
         .attr('viewBox', [0, 0, WIDTH, HEIGHT])
         .attr('xmlns', 'http://www.w3.org/2000/svg');
 
-    const data = readData()
+    const data = parseFromYamlFile('./data.yaml')
     drawDiagram(svg, data);
 
     fs.writeFileSync('out.svg', body.html());
 }
 
-function readData() {
-    const csv = fs.readFileSync('./data.csv', 'utf8');
-    const links = d3.csvParse(csv, d3.autoType);
-    const nodes = Array.from(new Set(links.flatMap(l => [l.source, l.target])), name => ({name, category: name.replace(/ .*/, "")}));
-    return {nodes, links, units: "TWh"};
+function parseFromYamlFile(fileName) {
+    const text = fs.readFileSync(fileName, 'utf8')
+    const yamlNodes = jsYaml.load(text)
+    const nodeMap = new Map(yamlNodes.map(node => [node.name, node]))
+    yamlNodes.forEach(addMissingLinkTargets)
+    const orderedNodes = orderNodes()
+    orderedNodes.forEach(colorNode)
+
+    const processedLinks = orderedNodes.flatMap(convertLinks)
+    return {
+        nodes: orderedNodes,
+        links: processedLinks,
+    }
+
+    function addMissingLinkTargets(node) {
+        const links = node.links || []
+        links.forEach(link => {
+            const targetName = link.to
+            if (!nodeMap.has(targetName)) {
+                nodeMap.set(targetName, {
+                    name: targetName,
+                })
+            }
+        })
+    }
+
+    function orderNodes() {
+        const orderedNames = []
+        yamlNodes.forEach(recurse)
+        return orderedNames.map(name => nodeMap.get(name))
+
+        function recurse(node) {
+            const { name } = node
+            if (!orderedNames.includes(name)) {
+                orderedNames.push(name)
+            }
+            const children = (node.links || []).map(link => nodeMap.get(link.to))
+            children.forEach(child => child.parent = node)
+            children.forEach(recurse)
+        }
+    }
+
+    function colorNode(node) {
+        if (!node.color) {
+            const {parent} = node
+            if (parent) {
+                colorNode(parent)
+                node.color = parent.color
+            } else {
+                node.color = colorScale(node.name)
+            }
+        }
+
+        if (node.color === 'random') {
+            node.color = colorScale(node.name)
+        }
+    }
+
+    function convertLinks(node) {
+        return (node.links || []).map(link => {
+            const targetNode = nodeMap.get(link.to)
+            return {
+                source: node.name,
+                target: targetNode.name,
+                value: link.value,
+                color: targetNode.color || node.color,
+            }
+        })
+    }
 }
 
 function sankey({ nodes, links }) {
     const sankey = d3Sankey.sankey()
         .nodeId(d => d.name)
-        //.nodeAlign(d3[`sankey${align[0].toUpperCase()}${align.slice(1)}`])
+        .nodeAlign(d3Sankey.sankeyLeft)
         .nodes(nodes)
         .links(links)
+        .nodeSort(null) // null is input order, undefined is automatic
+        .linkSort(null)
         .nodeWidth(15)
         .nodePadding(10)
         .extent([[1, 5], [WIDTH - 1, HEIGHT - 5]]);
@@ -58,7 +125,7 @@ function drawDiagram(svg, data) {
             .attr("y", d => d.y0)
             .attr("height", d => d.y1 - d.y0)
             .attr("width", d => d.x1 - d.x0)
-            .attr("fill", color)
+            .attr("fill", d => d.color)
         .append("title")
             .text(d => `${d.name}\n${format(d.value)}`);
 
@@ -89,7 +156,7 @@ function drawDiagram(svg, data) {
 
     link.append("path")
         .attr("d", d3Sankey.sankeyLinkHorizontal())
-        .attr('stroke', d => color(d.source))
+        .attr('stroke', d => d.color)
         .attr("stroke-width", d => Math.max(1, d.width));
 
     link.append("title")
