@@ -16,6 +16,7 @@ exports.parseFromYamlFile = function(fileName) {
 
     const processedLinks = orderedNodes.flatMap(linkConverter(nodeMap))
     return {
+        title: yaml.title,
         unit: yaml.unit,
         width: yaml.width || DEFAULT_WIDTH,
         height: yaml.height ||DEFAULT_HEIGHT,

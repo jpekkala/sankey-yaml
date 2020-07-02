@@ -6,6 +6,12 @@ const fs = require('fs');
 const { parseFromYamlFile } = require('./inputParser')
 
 function main() {
+    generateChart('./sheets/data.yaml')
+}
+
+function generateChart(fileName) {
+    const data = parseFromYamlFile(fileName)
+
     const dom = new JSDOM('<!DOCTYPE html><body></body>');
 
     const body = d3.select(dom.window.document.querySelector("body"))
@@ -15,10 +21,10 @@ function main() {
         .attr('viewBox', [0, 0, data.width, data.height])
         .attr('xmlns', 'http://www.w3.org/2000/svg');
 
-    const data = parseFromYamlFile('./data.yaml')
     drawDiagram(svg, data);
 
-    fs.writeFileSync('out.svg', body.html());
+    const outputFile = './' + (data.title || 'out') + '.svg'
+    fs.writeFileSync(outputFile, body.html());
 }
 
 function sankey(data) {
@@ -62,23 +68,6 @@ function drawDiagram(svg, data) {
         .data(links)
         .join("g")
             .style("mix-blend-mode", "multiply");
-
-    const edgeColor = 'path';
-
-    if (edgeColor === "path") {
-        const gradient = link.append("linearGradient")
-            .attr("gradientUnits", "userSpaceOnUse")
-            .attr("x1", d => d.source.x1)
-            .attr("x2", d => d.target.x0);
-
-        gradient.append("stop")
-            .attr("offset", "0%")
-            .attr("stop-color", d => d.color);
-
-        gradient.append("stop")
-            .attr("offset", "100%")
-            .attr("stop-color", d => d.color);
-    }
 
     link.append("path")
         .attr("d", d3Sankey.sankeyLinkHorizontal())
