@@ -2,21 +2,17 @@ const { JSDOM } = require('jsdom');
 const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
 const fs = require('fs');
-const jsYaml = require('js-yaml')
 
-const WIDTH = 800;
-const HEIGHT = 800;
-
-const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+const { parseFromYamlFile } = require('./inputParser')
 
 function main() {
     const dom = new JSDOM('<!DOCTYPE html><body></body>');
 
     const body = d3.select(dom.window.document.querySelector("body"))
     const svg = body.append('svg')
-        .attr('width', WIDTH)
-        .attr('height', HEIGHT)
-        .attr('viewBox', [0, 0, WIDTH, HEIGHT])
+        .attr('width', data.width)
+        .attr('height', data.height)
+        .attr('viewBox', [0, 0, data.width, data.height])
         .attr('xmlns', 'http://www.w3.org/2000/svg');
 
     const data = parseFromYamlFile('./data.yaml')
@@ -25,88 +21,17 @@ function main() {
     fs.writeFileSync('out.svg', body.html());
 }
 
-function parseFromYamlFile(fileName) {
-    const text = fs.readFileSync(fileName, 'utf8')
-    const yamlNodes = jsYaml.load(text)
-    const nodeMap = new Map(yamlNodes.map(node => [node.name, node]))
-    yamlNodes.forEach(addMissingLinkTargets)
-    const orderedNodes = orderNodes()
-    orderedNodes.forEach(colorNode)
-
-    const processedLinks = orderedNodes.flatMap(convertLinks)
-    return {
-        nodes: orderedNodes,
-        links: processedLinks,
-    }
-
-    function addMissingLinkTargets(node) {
-        const links = node.links || []
-        links.forEach(link => {
-            const targetName = link.to
-            if (!nodeMap.has(targetName)) {
-                nodeMap.set(targetName, {
-                    name: targetName,
-                })
-            }
-        })
-    }
-
-    function orderNodes() {
-        const orderedNames = []
-        yamlNodes.forEach(recurse)
-        return orderedNames.map(name => nodeMap.get(name))
-
-        function recurse(node) {
-            const { name } = node
-            if (!orderedNames.includes(name)) {
-                orderedNames.push(name)
-            }
-            const children = (node.links || []).map(link => nodeMap.get(link.to))
-            children.forEach(child => child.parent = node)
-            children.forEach(recurse)
-        }
-    }
-
-    function colorNode(node) {
-        if (!node.color) {
-            const {parent} = node
-            if (parent) {
-                colorNode(parent)
-                node.color = parent.color
-            } else {
-                node.color = colorScale(node.name)
-            }
-        }
-
-        if (node.color === 'random') {
-            node.color = colorScale(node.name)
-        }
-    }
-
-    function convertLinks(node) {
-        return (node.links || []).map(link => {
-            const targetNode = nodeMap.get(link.to)
-            return {
-                source: node.name,
-                target: targetNode.name,
-                value: link.value,
-                color: targetNode.color || node.color,
-            }
-        })
-    }
-}
-
-function sankey({ nodes, links }) {
+function sankey(data) {
     const sankey = d3Sankey.sankey()
         .nodeId(d => d.name)
         .nodeAlign(d3Sankey.sankeyLeft)
-        .nodes(nodes)
-        .links(links)
+        .nodes(data.nodes)
+        .links(data.links)
         .nodeSort(null) // null is input order, undefined is automatic
         .linkSort(null)
         .nodeWidth(15)
         .nodePadding(10)
-        .extent([[1, 5], [WIDTH - 1, HEIGHT - 5]]);
+        .extent([[1, 5], [data.width - 1, data.height - 5]]);
     return sankey()
 }
 
@@ -115,6 +40,7 @@ function sankey({ nodes, links }) {
  */
 function drawDiagram(svg, data) {
     const {nodes, links} = sankey(data);
+    console.log(nodes)
 
     svg.append("g")
             .attr("stroke", "#000")
@@ -147,11 +73,11 @@ function drawDiagram(svg, data) {
 
         gradient.append("stop")
             .attr("offset", "0%")
-            .attr("stop-color", color);
+            .attr("stop-color", d => d.color);
 
         gradient.append("stop")
             .attr("offset", "100%")
-            .attr("stop-color", color);
+            .attr("stop-color", d => d.color);
     }
 
     link.append("path")
@@ -168,17 +94,13 @@ function drawDiagram(svg, data) {
         .selectAll("text")
         .data(nodes)
         .join("text")
-            .attr("x", d => d.x0 < WIDTH / 2 ? d.x1 + 6 : d.x0 - 6)
+            .attr("x", d => d.x0 < data.width / 2 ? d.x1 + 6 : d.x0 - 6)
             .attr("y", d => (d.y1 + d.y0) / 2)
             .attr("dy", "0.35em")
-            .attr("text-anchor", d => d.x0 < WIDTH / 2 ? "start" : "end")
-            .text(d => d.name);
+            .attr("text-anchor", d => d.x0 < data.width / 2 ? "start" : "end")
+            .text(d => `${d.name}: ${d.value} ${data.unit}`);
 
     return svg.node();
-}
-
-function color(d) {
-  return colorScale(d.category === undefined ? d.name : d.category);
 }
 
 function format() {
