@@ -5,6 +5,7 @@ const fs = require('fs');
 
 const { parseFromYamlFile } = require('./inputParser')
 
+const hoverFormat = d3.format(",.0f");
 const SHEET_FOLDER = './sheets'
 
 function main() {
@@ -63,7 +64,13 @@ function drawDiagram(svg, data) {
             .attr("width", d => d.x1 - d.x0)
             .attr("fill", d => d.color)
         .append("title")
-            .text(d => `${d.name}\n${format(d.value)}`);
+            .text(d => {
+                let text = `${d.name} ${hoverFormat(d.value)} ${data.unit}`
+                if (d.description) {
+                    text += `:\n${d.description}`
+                }
+                return text
+            });
 
     const link = svg.append("g")
             .attr("fill", "none")
@@ -79,7 +86,7 @@ function drawDiagram(svg, data) {
         .attr("stroke-width", d => Math.max(1, d.width));
 
     link.append("title")
-        .text(d => `${d.source.name} → ${d.target.name}\n${format(d.value)}`);
+        .text(d => `${d.source.name} → ${d.target.name}\n${hoverFormat(d.value)}`);
 
     svg.append("g")
             .attr("font-family", "sans-serif")
@@ -94,11 +101,6 @@ function drawDiagram(svg, data) {
             .text(d => `${d.name}: ${d.value} ${data.unit}`);
 
     return svg.node();
-}
-
-function format() {
-    const format = d3.format(",.0f");
-    return format;
 }
 
 if (require.main === module) {
