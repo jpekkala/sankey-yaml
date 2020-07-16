@@ -5,12 +5,16 @@ const fs = require('fs');
 
 const { parseFromYamlFile } = require('./inputParser')
 
+const SHEET_FOLDER = './sheets'
+
 function main() {
-    generateChart('./sheets/data.yaml')
+    const sheetFiles = fs.readdirSync(SHEET_FOLDER).filter(fileName => fileName.endsWith('.yaml'));
+    sheetFiles.forEach(fileName => generateChart(SHEET_FOLDER + '/' + fileName))
 }
 
 function generateChart(fileName) {
     const data = parseFromYamlFile(fileName)
+    console.log(`Generating chart ${data.title} from ${fileName}`)
 
     const dom = new JSDOM('<!DOCTYPE html><body></body>');
 
@@ -25,6 +29,7 @@ function generateChart(fileName) {
 
     const outputFile = './' + (data.title || 'out') + '.svg'
     fs.writeFileSync(outputFile, body.html());
+    console.log(`Saved to ${outputFile}`)
 }
 
 function sankey(data) {
@@ -46,7 +51,6 @@ function sankey(data) {
  */
 function drawDiagram(svg, data) {
     const {nodes, links} = sankey(data);
-    console.log(nodes)
 
     svg.append("g")
             .attr("stroke", "#000")
