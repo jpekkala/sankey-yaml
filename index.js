@@ -94,13 +94,18 @@ function drawDiagram(svg, data) {
         .selectAll("text")
         .data(nodes)
         .join("text")
-            .attr("x", d => d.x0 < data.width / 2 ? d.x1 + 6 : d.x0 - 6)
+            .attr("x", d => isTextOnRightSide(d, data) ? d.x1 + 6 : d.x0 - 6)
             .attr("y", d => (d.y1 + d.y0) / 2)
             .attr("dy", "0.35em")
-            .attr("text-anchor", d => d.x0 < data.width / 2 ? "start" : "end")
+            .attr("text-anchor", d => isTextOnRightSide(d, data) ? "start" : "end")
             .text(d => `${d.name}: ${d.value} ${data.unit}`);
 
     return svg.node();
+}
+
+function isTextOnRightSide(d, data) {
+    return d.x0 < 100
+    return d.x0 < data.width / 2
 }
 
 if (require.main === module) {
