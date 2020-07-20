@@ -14,7 +14,11 @@ exports.parseFromYamlFile = function(fileName) {
     const orderedNodes = orderNodes(yamlNodes, nodeMap)
     orderedNodes.forEach(nodeColorer())
 
-    const processedLinks = orderedNodes.flatMap(linkConverter(nodeMap))
+    const processedLinks = []
+    // flatmap
+    for (const links of orderedNodes.map(linkConverter(nodeMap))) {
+        processedLinks.push(...links)
+    }
     return {
         title: yaml.title,
         unit: yaml.unit,
