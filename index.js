@@ -7,6 +7,7 @@ const { parseFromYamlFile } = require('./inputParser')
 
 const hoverFormat = d3.format(",.0f");
 const SHEET_FOLDER = './sheets'
+const OUTPUT_FOLDER = './pics'
 
 function main() {
     const sheetFiles = fs.readdirSync(SHEET_FOLDER).filter(fileName => fileName.endsWith('.yaml'));
@@ -28,7 +29,10 @@ function generateChart(fileName) {
 
     drawDiagram(svg, data);
 
-    const outputFile = './' + (data.title || 'out') + '.svg'
+    if (!fs.existsSync(OUTPUT_FOLDER)) {
+        fs.mkdirSync(OUTPUT_FOLDER);
+    }
+    const outputFile = OUTPUT_FOLDER + '/' + (data.title || 'out') + '.svg'
     fs.writeFileSync(outputFile, body.html());
     console.log(`Saved to ${outputFile}`)
 }
