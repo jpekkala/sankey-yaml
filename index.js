@@ -1,3 +1,5 @@
+require('./shims')
+
 const { JSDOM } = require('jsdom');
 const d3 = require('d3');
 const d3Sankey = require('d3-sankey');

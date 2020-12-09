@@ -9,6 +9,7 @@
   "author": "Jukka Pekkala",
   "license": "MIT",
   "dependencies": {
+    "array.prototype.flatmap": "^1.2.4",
     "d3": "^5.16.0",
     "d3-sankey": "^0.12.3",
     "js-yaml": "^3.14.0",
