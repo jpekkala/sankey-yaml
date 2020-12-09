@@ -5,6 +5,29 @@ const d3 = require('d3');
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
 
+class Node {
+    constructor({ name, description, color}) {
+        this.name = name
+        this.description = description
+        this.color = color
+
+        this.incoming = []
+        this.outgoing = []
+    }
+}
+
+class Graph {
+
+    constructor() {
+        this.roots = []
+        this.nodeMap = new Map()
+    }
+
+    addNode(node) {
+        this.nodeMap.set(node.name, node)
+    }
+}
+
 exports.parseFromYamlFile = function(fileName) {
     const text = fs.readFileSync(fileName, 'utf8')
     return parseYaml(text)
