@@ -7,6 +7,10 @@ const DEFAULT_HEIGHT = 600
 
 exports.parseFromYamlFile = function(fileName) {
     const text = fs.readFileSync(fileName, 'utf8')
+    return parseYaml(text)
+}
+
+function parseYaml(text) {
     const yaml = jsYaml.load(text)
     const yamlNodes = yaml.nodes
     const nodeMap = new Map(yamlNodes.map(node => [node.name, node]))
@@ -37,6 +41,7 @@ exports.parseFromYamlFile = function(fileName) {
         })
     }
 }
+exports.parseYaml = parseYaml
 
 function linkConverter(nodeMap) {
     return function(node) {
