@@ -31,15 +31,6 @@ function parseYaml(text) {
 }
 exports.parseYaml = parseYaml
 
-class Node {
-    constructor(data) {
-        this.name = data.name
-        this.description = data.description
-        this.color = data.color
-        this.links = data.links || []
-    }
-}
-
 class Graph {
 
     constructor() {
@@ -116,13 +107,30 @@ class Graph {
         return this.nodes.flatMap(node => {
             return node.links.map(link => {
                 const targetNode = this.nodeMap.get(link.to)
+                const color = (targetNode && targetNode.color) || node.color
                 return {
                     source: node.name,
-                    target: targetNode.name,
+                    target: link.to,
                     value: link.value,
-                    color: targetNode.color || node.color,
+                    color,
                 }
             })
         })
+    }
+}
+
+class Node {
+    constructor(data) {
+        this.name = data.name
+        this.description = data.description
+        this.color = data.color
+        this.links = data.links || []
+        this.explicitValue = data.value
+    }
+
+    get value() {
+        if (this.explicitValue != null) {
+            return this.explicitValue
+        }
     }
 }
