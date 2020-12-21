@@ -34,7 +34,7 @@ describe('inputParser', function() {
               value: 1000
               links:
                 - { to: Child1, value: 300 }
-                - { to: Child2, value: 'rest' }
+                - { to: Child2, value: rest }
         `
         const { links } = parseYaml(yaml)
         assert.equal(links[0].value, 300)
@@ -47,7 +47,7 @@ describe('inputParser', function() {
             - name: Parent
               value: 1000
               links:
-                - { to: Child, value: 'auto' }
+                - { to: Child, value: auto }
             - name: Child
               links:
                 - { to: Grandchild1, value: 200 }
@@ -56,5 +56,25 @@ describe('inputParser', function() {
 
         const { links } = parseYaml(yaml)
         assert.equal(links[0].value, 500)
+    })
+
+    it('should support transitive auto links', () => {
+        const yaml = `
+        nodes:
+            - name: Parent
+              value: 1000
+              links:
+                - { to: Child1, value: auto }
+                - { to: Child2, value: rest }
+            - name: Child1
+              links:
+                - { to: Grandchild, value: auto }
+            - name: Grandchild
+              links:
+               - { to: Grandgrandchild, value: 300 }
+        `
+        const { links } = parseYaml(yaml)
+        assert.equal(links[0].value, 300)
+        assert.equal(links[1].value, 700)
     })
 })

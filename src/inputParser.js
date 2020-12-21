@@ -162,7 +162,11 @@ class Node {
         return link && link.sourceNode
     }
 
-    get incomingValue() {
+    get value() {
+        if (this.explicitValue) {
+            return this.explicitValue
+        }
+
         return this.incomingLinks.reduce((sum, link) => {
             return sum + link.value
         }, 0)
@@ -172,13 +176,6 @@ class Node {
         return this.outgoingLinks.reduce((sum, link) => {
             return sum + link.value
         }, 0)
-    }
-
-    get value() {
-        if (this.explicitValue != null) {
-            return this.explicitValue
-        }
-        return this.incomingValue || this.outgoingValue
     }
 
     toJSON() {
@@ -196,11 +193,31 @@ class Link {
     constructor({ sourceNode, targetNode, value }) {
         this.sourceNode = sourceNode
         this.targetNode = targetNode
-        this.value = value
+        this.explicitValue = value
     }
 
     get color() {
         return this.targetNode.color || this.sourceNode.color
+    }
+
+    get value() {
+        if (typeof this.explicitValue === 'number') {
+            return this.explicitValue
+        }
+
+        if (this.explicitValue === 'rest') {
+            const otherLinks = this.sourceNode.outgoingLinks.filter(link => link !== this)
+            const otherValue = otherLinks.reduce((sum, link) => {
+                return sum + link.value
+            }, 0)
+            return this.sourceNode.value - otherValue
+        }
+
+        if (this.explicitValue === 'auto') {
+            return this.targetNode.outgoingValue
+        }
+
+        return 0
     }
 
     toJSON() {
