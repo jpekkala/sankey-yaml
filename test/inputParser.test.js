@@ -77,4 +77,18 @@ describe('inputParser', function() {
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })
+
+    it('should support percentages', () => {
+        const yaml = `
+        nodes:
+            - name: Parent
+              value: 1000
+              links:
+                - { to: Child1, value: '30%' }
+                - { to: Child2, value: rest }
+        `
+        const { links } = parseYaml(yaml)
+        assert.equal(links[0].value, 300)
+        assert.equal(links[1].value, 700)
+    })
 })

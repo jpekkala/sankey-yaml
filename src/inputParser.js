@@ -205,7 +205,13 @@ class Link {
             return this.explicitValue
         }
 
-        if (this.explicitValue === 'rest') {
+        if (typeof this.explicitValue !== 'string') {
+            return 0
+        }
+
+        const stringValue = this.explicitValue.trim()
+
+        if (stringValue === 'rest') {
             const otherLinks = this.sourceNode.outgoingLinks.filter(link => link !== this)
             const otherValue = otherLinks.reduce((sum, link) => {
                 return sum + link.value
@@ -213,8 +219,13 @@ class Link {
             return this.sourceNode.value - otherValue
         }
 
-        if (this.explicitValue === 'auto') {
+        if (stringValue === 'auto') {
             return this.targetNode.outgoingValue
+        }
+
+        if (stringValue.endsWith('%')) {
+            const percentage = Number(stringValue.substring(0, stringValue.length - 1))
+            return Math.round(this.sourceNode.value * percentage / 100)
         }
 
         return 0
