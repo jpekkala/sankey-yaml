@@ -1,6 +1,7 @@
 const fs = require('fs');
 const jsYaml = require('js-yaml')
 const d3 = require('d3');
+const _ = require('lodash')
 
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
@@ -14,10 +15,11 @@ function parseYaml(text) {
     const yaml = jsYaml.load(text)
     const yamlNodes = yaml.nodes
 
-    const graph = new Graph()
-    yamlNodes.forEach(node => graph.addNode(node))
-    graph.autovivifyNodes()
-    graph.reorder()
+    const builder = new GraphBuilder()
+    yamlNodes.forEach(node => builder.addNode(node))
+    builder.autovivifyNodes()
+    builder.linkNodes()
+    const graph = builder.build()
     graph.colorNodes()
 
     return {
@@ -25,54 +27,92 @@ function parseYaml(text) {
         unit: yaml.unit,
         width: yaml.width || DEFAULT_WIDTH,
         height: yaml.height ||DEFAULT_HEIGHT,
-        nodes: graph.nodes,
-        links: graph.links,
+        nodes: graph.nodes.map(node => node.toJSON()),
+        links: graph.links.map(link => link.toJSON()),
     }
 }
 exports.parseYaml = parseYaml
 
-class Graph {
+class GraphBuilder {
 
     constructor() {
         this.nodeMap = new Map()
     }
 
-    addNode(node) {
-        if (!(node instanceof Node)) {
-            node = new Node(node)
-        }
-        this.nodeMap.set(node.name, node)
+    addNode(data) {
+        this.nodeMap.set(data.name, new Node(data))
+    }
+
+    build() {
+        this.autovivifyNodes()
+        this.linkNodes()
+        this.orderNodes()
+        return new Graph(this.nodes)
     }
 
     autovivifyNodes() {
         const missingTargets = this.nodes
-            .flatMap(node => node.links)
+            .flatMap(node => node.originalLinks)
             .map(link => link.to)
             .filter(target => !this.nodeMap.has(target))
 
-        for (const target of new Set(missingTargets)) {
+        for (const target of _.uniq(missingTargets)) {
             this.addNode({
                 name: target,
             })
         }
     }
 
-    reorder() {
-        const recurse = (node)  => {
-            const { name } = node
-            if (!map.has(name)) {
-                map.set(name, node)
-            }
-            const children = (node.links || []).map(link => this.nodeMap.get(link.to))
-            children.forEach(child => child.parent = node)
-            children.forEach(recurse)
+    linkNodes() {
+        for (const node of this.nodes) {
+            node.incomingLinks = []
         }
 
-        const map = new Map()
+        for (const node of this.nodes) {
+            node.outgoingLinks = node.originalLinks.map(linkData => {
+                const link = new Link({
+                    sourceNode: node,
+                    targetNode: this.getByName(linkData.to),
+                    value: linkData.value,
+                })
+                link.targetNode.incomingLinks.push(link)
+                return link
+            })
+        }
+    }
+
+    orderNodes() {
+        const orderedMap = new Map()
         for (const node of this.nodes) {
             recurse(node)
         }
-        this.nodeMap = map
+        this.nodeMap = orderedMap
+
+        function recurse(node) {
+            if (!orderedMap.has(node)) {
+                orderedMap.set(node.name, node)
+            }
+
+            for (const link of node.outgoingLinks) {
+                recurse(link.targetNode)
+            }
+        }
+    }
+
+    getByName(name) {
+        return this.nodeMap.get(name)
+    }
+
+    get nodes() {
+        return Array.from(this.nodeMap.values())
+    }
+}
+
+
+class Graph {
+
+    constructor(nodes) {
+        this.nodes = nodes
     }
 
     colorNodes() {
@@ -99,38 +139,76 @@ class Graph {
         }
     }
 
-    get nodes() {
-        return Array.from(this.nodeMap.values())
-    }
-
     get links() {
-        return this.nodes.flatMap(node => {
-            return node.links.map(link => {
-                const targetNode = this.nodeMap.get(link.to)
-                const color = (targetNode && targetNode.color) || node.color
-                return {
-                    source: node.name,
-                    target: link.to,
-                    value: link.value,
-                    color,
-                }
-            })
-        })
+        return this.nodes.flatMap(node => node.outgoingLinks)
     }
 }
 
 class Node {
-    constructor(data) {
-        this.name = data.name
-        this.description = data.description
-        this.color = data.color
-        this.links = data.links || []
-        this.explicitValue = data.value
+    constructor({ name, description, color, links, value }) {
+        this.name = name
+        this.description = description
+        this.color = color
+        this.explicitValue = value
+        this.originalLinks = links || []
+
+        // set by GraphBuilder
+        this.incomingLinks = []
+        this.outgoingLinks = []
+    }
+
+    get parent() {
+        const link = this.incomingLinks[0]
+        return link && link.sourceNode
+    }
+
+    get incomingValue() {
+        return this.incomingLinks.reduce((sum, link) => {
+            return sum + link.value
+        }, 0)
+    }
+
+    get outgoingValue() {
+        return this.outgoingLinks.reduce((sum, link) => {
+            return sum + link.value
+        }, 0)
     }
 
     get value() {
         if (this.explicitValue != null) {
             return this.explicitValue
+        }
+        return this.incomingValue || this.outgoingValue
+    }
+
+    toJSON() {
+        return {
+            name: this.name,
+            description: this.description,
+            color: this.color,
+            value: this.value,
+        }
+    }
+}
+
+class Link {
+
+    constructor({ sourceNode, targetNode, value }) {
+        this.sourceNode = sourceNode
+        this.targetNode = targetNode
+        this.value = value
+    }
+
+    get color() {
+        return this.targetNode.color || this.sourceNode.color
+    }
+
+    toJSON() {
+        return {
+            source: this.sourceNode.name,
+            target: this.targetNode.name,
+            color: this.color,
+            value: this.value,
         }
     }
 }

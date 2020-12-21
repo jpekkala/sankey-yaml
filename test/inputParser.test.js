@@ -10,7 +10,7 @@ describe('inputParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes } = parseYaml(yaml)
+        const { nodes, links } = parseYaml(yaml)
         assert.lengthOf(nodes, 2)
         assert.equal(nodes[0].name, 'Parent')
         assert.equal(nodes[1].name, 'Child')
