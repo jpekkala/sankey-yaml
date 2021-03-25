@@ -74,6 +74,7 @@ class GraphBuilder {
                     sourceNode: node,
                     targetNode: this.getByName(linkData.to),
                     value: linkData.value,
+                    color: linkData.color,
                 })
                 link.targetNode.incomingLinks.push(link)
                 return link
@@ -123,18 +124,26 @@ class Graph {
         }
 
         function colorNode(node) {
-            if (!node.color) {
-                const { parent } = node
-                if (parent) {
-                    colorNode(parent)
-                    node.color = parent.color
-                } else {
-                    node.color = colorScale(node.name)
-                }
+            if (node.color) {
+                return
+            }
 
-                if (node.color === 'random') {
-                    node.color = colorScale(node.name)
-                }
+            const coloredLink = node.incomingLinks.find(link => link.color)
+            if (coloredLink) {
+                node.color = coloredLink.color
+                return
+            }
+
+            const { parent } = node
+            if (parent) {
+                colorNode(parent)
+                node.color = parent.color
+            } else {
+                node.color = colorScale(node.name)
+            }
+
+            if (node.color === 'random') {
+                node.color = colorScale(node.name)
             }
         }
     }
@@ -190,14 +199,15 @@ class Node {
 
 class Link {
 
-    constructor({ sourceNode, targetNode, value }) {
+    constructor({ sourceNode, targetNode, value, color }) {
         this.sourceNode = sourceNode
         this.targetNode = targetNode
         this.explicitValue = value
+        this.explicitColor = color
     }
 
     get color() {
-        return this.targetNode.color || this.sourceNode.color
+        return this.explicitColor || this.targetNode.color || this.sourceNode.color
     }
 
     get value() {
