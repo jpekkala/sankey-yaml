@@ -6,14 +6,19 @@ const _ = require('lodash')
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
 
-exports.parseFromYamlFile = function(fileName) {
-    const text = fs.readFileSync(fileName, 'utf8')
+exports.parseFromYamlFile = function(filename) {
+    const text = fs.readFileSync(filename, 'utf8')
     return parseYaml(text)
 }
 
 function parseYaml(text) {
     const yaml = jsYaml.load(text)
     const yamlNodes = yaml.nodes
+    for (const filename of (yaml.embed || [])) {
+        const text = fs.readFileSync(filename, 'utf8')
+        const subsheet = jsYaml.load(text)
+        yamlNodes.push(...subsheet.nodes)
+    }
 
     const builder = new GraphBuilder()
     yamlNodes.forEach(node => builder.addNode(node))
