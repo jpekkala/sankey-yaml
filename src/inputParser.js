@@ -45,7 +45,12 @@ class GraphBuilder {
     }
 
     addNode(data) {
-        this.nodeMap.set(data.name, new Node(data))
+        if (this.nodeMap.has(data.name)) {
+            const existingNode = this.nodeMap.get(data.name)
+            existingNode.addLinks(data.links || [])
+        } else {
+            this.nodeMap.set(data.name, new Node(data))
+        }
     }
 
     build() {
@@ -169,6 +174,10 @@ class Node {
         // set by GraphBuilder
         this.incomingLinks = []
         this.outgoingLinks = []
+    }
+
+    addLinks(links) {
+        this.originalLinks.push(...links)
     }
 
     get parent() {
