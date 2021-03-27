@@ -2,6 +2,7 @@ const fs = require('fs');
 const jsYaml = require('js-yaml')
 const d3 = require('d3');
 const _ = require('lodash')
+const { handleLinkValue } = require('./linkPlugins')
 
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
@@ -85,6 +86,7 @@ class GraphBuilder {
                     targetNode: this.getByName(linkData.to),
                     value: linkData.value,
                     color: linkData.color,
+                    nodeLookup: name => this.getByName(name)
                 })
                 link.targetNode.incomingLinks.push(link)
                 return link
@@ -213,11 +215,12 @@ class Node {
 
 class Link {
 
-    constructor({ sourceNode, targetNode, value, color }) {
+    constructor({ sourceNode, targetNode, value, color, nodeLookup }) {
         this.sourceNode = sourceNode
         this.targetNode = targetNode
         this.explicitValue = value
         this.explicitColor = color
+        this.nodeLookup = nodeLookup
     }
 
     get color() {
@@ -227,6 +230,10 @@ class Link {
     get value() {
         if (typeof this.explicitValue === 'number') {
             return this.explicitValue
+        }
+
+        if (typeof this.explicitValue === 'object' && this.explicitValue !== null) {
+            return handleLinkValue(this, this.explicitValue)
         }
 
         if (typeof this.explicitValue !== 'string') {
