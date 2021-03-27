@@ -15,11 +15,7 @@ exports.parseFromYamlFile = function(filename) {
 function parseYaml(text) {
     const yaml = jsYaml.load(text)
     const yamlNodes = yaml.nodes
-    for (const filename of (yaml.embed || [])) {
-        const text = fs.readFileSync(filename, 'utf8')
-        const subsheet = jsYaml.load(text)
-        yamlNodes.push(...subsheet.nodes)
-    }
+    includeSubsheets(yamlNodes, yaml)
 
     const builder = new GraphBuilder()
     yamlNodes.forEach(node => builder.addNode(node))
@@ -38,6 +34,15 @@ function parseYaml(text) {
     }
 }
 exports.parseYaml = parseYaml
+
+function includeSubsheets(totalNodes, yamlSheet) {
+    for (const filename of (yamlSheet.embed || [])) {
+        const text = fs.readFileSync(filename, 'utf8')
+        const subsheet = jsYaml.load(text)
+        totalNodes.push(...subsheet.nodes)
+        includeSubsheets(totalNodes, subsheet)
+    }
+}
 
 class GraphBuilder {
 
