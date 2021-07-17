@@ -1,6 +1,7 @@
 require('./shims')
 
 const { JSDOM } = require('jsdom');
+const dayjs = require('dayjs');
 const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
 const fs = require('fs');
@@ -30,6 +31,17 @@ function generateChart(fileName) {
         .attr('xmlns', 'http://www.w3.org/2000/svg');
 
     drawDiagram(svg, data);
+
+    // append current time
+    const now = dayjs()
+    svg.append('text')
+        .attr('font-family', 'sans-serif')
+        .attr('font-size', '8px')
+        .attr('x', data.width - 5)
+        .attr('y', data.height - 5)
+        .attr('text-anchor', 'end')
+        .text('Generated on ' + now.format('YYYY-MM-DD'))
+        .append('title').text(now.format())
 
     if (!fs.existsSync(OUTPUT_FOLDER)) {
         fs.mkdirSync(OUTPUT_FOLDER);
