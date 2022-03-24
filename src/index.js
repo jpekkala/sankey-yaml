@@ -121,7 +121,7 @@ function drawDiagram(svg, data) {
                     return `rotate(90 ${d.x0 + (d.x1 - d.x0)/2} ${d.y0 + (d.y1 - d.y0)/2})`
                 }
             })
-            .text(d => `${d.name}: ${d.value} ${data.unit}`);
+            .text(d => `${d.name}: ${d.realValue} ${data.unit}`);
 
     return svg.node();
 }

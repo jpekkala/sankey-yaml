@@ -214,6 +214,10 @@ class Node {
             description: this.description,
             color: this.color,
             value: this.value,
+            /**
+             * D3 overwrites the value prop with 0 if it's negative. This prop is not modified by D3.
+             */
+            realValue: this.value,
         }
     }
 }
