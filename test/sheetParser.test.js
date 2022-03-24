@@ -1,7 +1,7 @@
 const { assert } = require('chai')
-const { parseYaml } = require('../src/inputParser')
+const { parseSheet } = require('../src/sheetParser')
 
-describe('inputParser', function() {
+describe('sheetParser', function() {
 
     it('should autovivify missing nodes from links', () => {
         const yaml = `
@@ -10,7 +10,7 @@ describe('inputParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes, links } = parseYaml(yaml)
+        const { nodes, links } = parseSheet(yaml)
         assert.lengthOf(nodes, 2)
         assert.equal(nodes[0].name, 'Parent')
         assert.equal(nodes[1].name, 'Child')
@@ -23,7 +23,7 @@ describe('inputParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes } = parseYaml(yaml)
+        const { nodes } = parseSheet(yaml, { plain: false })
         assert.equal(nodes[1].parent, nodes[0])
     })
 
@@ -36,7 +36,7 @@ describe('inputParser', function() {
                 - { to: Child1, value: 300 }
                 - { to: Child2, value: rest }
         `
-        const { links } = parseYaml(yaml)
+        const { links } = parseSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })
@@ -54,7 +54,7 @@ describe('inputParser', function() {
                 - { to: Grandchild2, value: 300 }
         `
 
-        const { links } = parseYaml(yaml)
+        const { links } = parseSheet(yaml)
         assert.equal(links[0].value, 500)
     })
 
@@ -73,7 +73,7 @@ describe('inputParser', function() {
               links:
                - { to: Grandgrandchild, value: 300 }
         `
-        const { links } = parseYaml(yaml)
+        const { links } = parseSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })
@@ -87,7 +87,7 @@ describe('inputParser', function() {
                 - { to: Child1, value: '30%' }
                 - { to: Child2, value: rest }
         `
-        const { links } = parseYaml(yaml)
+        const { links } = parseSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })

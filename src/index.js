@@ -6,7 +6,7 @@ const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
 const fs = require('fs');
 
-const { parseFromYamlFile } = require('./inputParser')
+const { parseSheetFromFile } = require('./sheetParser')
 
 const hoverFormat = d3.format(",.0f");
 const SHEET_FOLDER = './sheets'
@@ -18,7 +18,7 @@ function main() {
 }
 
 function generateChart(fileName) {
-    const data = parseFromYamlFile(fileName)
+    const data = parseSheetFromFile(fileName)
     console.log(`Generating chart ${data.title} from ${fileName}`)
 
     const dom = new JSDOM('<!DOCTYPE html><body></body>');

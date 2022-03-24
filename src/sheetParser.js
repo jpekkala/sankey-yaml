@@ -7,12 +7,12 @@ const { handleLinkValue } = require('./linkPlugins')
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
 
-exports.parseFromYamlFile = function(filename) {
+exports.parseSheetFromFile = function(filename, options) {
     const text = fs.readFileSync(filename, 'utf8')
-    return parseYaml(text)
+    return parseSheet(text, options)
 }
 
-function parseYaml(text) {
+function parseSheet(text, options = {}) {
     const yaml = jsYaml.load(text)
     const yamlNodes = yaml.nodes
     includeSubsheets(yamlNodes, yaml)
@@ -24,16 +24,20 @@ function parseYaml(text) {
     const graph = builder.build()
     graph.colorNodes()
 
+    const {
+        plain = true,
+    } = options
+
     return {
         title: yaml.title,
         unit: yaml.unit,
         width: yaml.width || DEFAULT_WIDTH,
         height: yaml.height ||DEFAULT_HEIGHT,
-        nodes: graph.nodes.map(node => node.toJSON()),
-        links: graph.links.map(link => link.toJSON()),
+        nodes: graph.nodes.map(node => plain ? node.toJSON() : node),
+        links: graph.links.map(link => plain ? link.toJSON() : link),
     }
 }
-exports.parseYaml = parseYaml
+exports.parseSheet = parseSheet
 
 function includeSubsheets(totalNodes, yamlSheet) {
     for (const filename of (yamlSheet.embed || [])) {
