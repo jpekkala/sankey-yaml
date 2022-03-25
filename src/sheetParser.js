@@ -2,7 +2,7 @@ const fs = require('fs');
 const jsYaml = require('js-yaml')
 const d3 = require('d3');
 const _ = require('lodash')
-const { handleLinkValue } = require('./linkPlugins')
+const { callLinkPlugin } = require('./plugins')
 
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
@@ -246,7 +246,7 @@ class Link {
         }
 
         if (typeof this.explicitValue === 'object' && this.explicitValue !== null) {
-            return handleLinkValue(this, this.explicitValue)
+            return callLinkPlugin(this, this.explicitValue)
         }
 
         if (typeof this.explicitValue !== 'string') {
