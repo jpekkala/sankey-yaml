@@ -1,5 +1,8 @@
 const { assert } = require('chai')
-const { parseSingleSheet } = require('../src/sheetParser')
+const {
+    parseSingleSheet,
+    parseSheet,
+} = require('../src/sheetParser')
 
 describe('sheetParser', function() {
 
@@ -107,6 +110,35 @@ describe('sheetParser', function() {
             assert.fail()
         } catch (err) {
             assert.equal(err.message, 'Cyclic node: A → B → A')
+        }
+    })
+
+    it('should support OR syntax', () => {
+        const yaml = `
+        nodes:
+            - name: A
+              value: 1000|2000
+              links:
+                - { to: B, value: rest }
+                - { to: C, value: 500 }
+        `
+
+        const graphs = parseSheet(yaml)
+        assert.lengthOf(graphs, 2)
+        {
+            const { nodes } = graphs[0]
+            assert.lengthOf(nodes, 3)
+            assert.equal(nodes[0].value, 1000)
+            assert.equal(nodes[1].value, 500)
+            assert.equal(nodes[2].value, 500)
+        }
+
+        {
+            const { nodes } = graphs[1]
+            assert.lengthOf(nodes, 3)
+            assert.equal(nodes[0].value, 2000)
+            assert.equal(nodes[1].value, 1500)
+            assert.equal(nodes[2].value, 500)
         }
     })
 })

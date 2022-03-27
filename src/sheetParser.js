@@ -86,14 +86,16 @@ class GraphBuilder {
             const newCollections = []
             for (const node of alternativeNodes) {
                 for (const collection of this.nodeCollections) {
-                    newCollections.push(collection.cloneAndAdd(node))
+                    const nodeCopy = cloneDeep(node)
+                    newCollections.push(collection.cloneAndAdd(nodeCopy))
                 }
             }
             this.nodeCollections = newCollections
-        }
-
-        for (const collection of this.nodeCollections) {
-            collection.add(data)
+        } else {
+            for (const collection of this.nodeCollections) {
+                const nodeCopy = cloneDeep(data)
+                collection.add(nodeCopy)
+            }
         }
     }
 

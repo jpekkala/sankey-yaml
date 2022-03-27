@@ -99,6 +99,10 @@ class Node {
             realValue: this.value,
         }
     }
+
+    toString() {
+        return `Node[name=${this.name}]`
+    }
 }
 exports.Node = Node
 
@@ -148,7 +152,12 @@ class Link {
             return Math.round(this.sourceNode.value * percentage / 100)
         }
 
-        return 0
+        const parsedNumber = Number(stringValue)
+        if (Number.isFinite(parsedNumber)) {
+            return parsedNumber
+        } else {
+            return 0
+        }
     }
 
     toJSON() {
@@ -158,6 +167,10 @@ class Link {
             color: this.color,
             value: this.value,
         }
+    }
+
+    toString() {
+        return `Link[${this.sourceNode.name} → ${this.targetNode.name}]`
     }
 }
 exports.Link = Link
