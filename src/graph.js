@@ -6,8 +6,9 @@ const { callLinkPlugin } = require('./plugins')
  */
 class Graph {
 
-    constructor(nodes) {
+    constructor({ nodes, suffix}) {
         this.nodes = nodes
+        this.suffix = suffix
     }
 
     colorNodes() {
@@ -160,3 +161,23 @@ class Link {
     }
 }
 exports.Link = Link
+
+function visitNodeTree(node, fn) {
+    const path = []
+    recurse(node)
+
+    function recurse(node) {
+        const cyclic = path.includes(node)
+        path.push(node)
+        if (cyclic) {
+            const pathStr = path.map(node => node.name).join(' → ')
+            throw Error(`Cyclic node: ${pathStr}`)
+        }
+        fn(node)
+        for (const link of node.outgoingLinks) {
+            recurse(link.targetNode)
+        }
+        path.pop()
+    }
+}
+exports.visitNodeTree = visitNodeTree

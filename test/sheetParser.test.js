@@ -1,5 +1,5 @@
 const { assert } = require('chai')
-const { parseSheet } = require('../src/sheetParser')
+const { parseSingleSheet } = require('../src/sheetParser')
 
 describe('sheetParser', function() {
 
@@ -10,7 +10,7 @@ describe('sheetParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes, links } = parseSheet(yaml)
+        const { nodes, links } = parseSingleSheet(yaml)
         assert.lengthOf(nodes, 2)
         assert.equal(nodes[0].name, 'Parent')
         assert.equal(nodes[1].name, 'Child')
@@ -23,7 +23,7 @@ describe('sheetParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes } = parseSheet(yaml, { plain: false })
+        const { nodes } = parseSingleSheet(yaml, { plain: false })
         assert.equal(nodes[1].parent, nodes[0])
     })
 
@@ -36,7 +36,7 @@ describe('sheetParser', function() {
                 - { to: Child1, value: 300 }
                 - { to: Child2, value: rest }
         `
-        const { links } = parseSheet(yaml)
+        const { links } = parseSingleSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })
@@ -54,7 +54,7 @@ describe('sheetParser', function() {
                 - { to: Grandchild2, value: 300 }
         `
 
-        const { links } = parseSheet(yaml)
+        const { links } = parseSingleSheet(yaml)
         assert.equal(links[0].value, 500)
     })
 
@@ -73,7 +73,7 @@ describe('sheetParser', function() {
               links:
                - { to: Grandgrandchild, value: 300 }
         `
-        const { links } = parseSheet(yaml)
+        const { links } = parseSingleSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
     })
@@ -87,8 +87,26 @@ describe('sheetParser', function() {
                 - { to: Child1, value: '30%' }
                 - { to: Child2, value: rest }
         `
-        const { links } = parseSheet(yaml)
+        const { links } = parseSingleSheet(yaml)
         assert.equal(links[0].value, 300)
         assert.equal(links[1].value, 700)
+    })
+
+    it('should throw if sheet contains cycles', () => {
+        const yaml = `
+        nodes:
+            - name: A
+              links:
+                - { to: B, value: 1000 }
+            - name: B
+              links:
+                - { to: A, value: 1000 }
+        `
+        try {
+            parseSingleSheet(yaml)
+            assert.fail()
+        } catch (err) {
+            assert.equal(err.message, 'Cyclic node: A → B → A')
+        }
     })
 })

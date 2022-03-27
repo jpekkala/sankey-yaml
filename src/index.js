@@ -6,21 +6,31 @@ const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
 const fs = require('fs');
 
-const { parseSheetFromFile } = require('./sheetParser')
+const { parseSheetFile } = require('./sheetParser')
 
 const hoverFormat = d3.format(",.0f");
 const SHEET_FOLDER = './sheets'
 const OUTPUT_FOLDER = './pics'
 
-function main() {
-    const sheetFiles = fs.readdirSync(SHEET_FOLDER).filter(fileName => fileName.endsWith('.yaml'));
-    sheetFiles.forEach(fileName => generateChart(SHEET_FOLDER + '/' + fileName))
+function generateFromFolder(folderName) {
+    const sheetFiles = fs.readdirSync(folderName)
+        .filter(fileName => fileName.endsWith('.yaml'))
+        .map(fileName => SHEET_FOLDER + '/' + fileName)
+
+    for (const fileName of sheetFiles) {
+        generateFromFile(fileName)
+    }
 }
+exports.generateFromFolder = generateFromFolder
 
-function generateChart(fileName) {
-    const data = parseSheetFromFile(fileName)
-    console.log(`Generating chart ${data.title} from ${fileName}`)
+function generateFromFile(fileName) {
+    const graphs = parseSheetFile(fileName)
+    console.log(`Generating ${graphs.length} chart(s) from ${fileName}`)
+    graphs.forEach(generateChart)
+}
+exports.generateFromFile = generateFromFolder
 
+function generateChart(data) {
     const dom = new JSDOM('<!DOCTYPE html><body></body>');
 
     const body = d3.select(dom.window.document.querySelector("body"))
@@ -131,5 +141,5 @@ function isTextInsideRect(d, data) {
 }
 
 if (require.main === module) {
-    main();
+    generateFromFolder(SHEET_FOLDER)
 }

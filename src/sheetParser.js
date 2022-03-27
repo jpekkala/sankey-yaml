@@ -9,12 +9,13 @@ const {
     Graph,
     Link,
     Node,
+    visitNodeTree,
 } = require('./graph')
 
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
 
-exports.parseSheetFromFile = function(filename, options) {
+exports.parseSheetFile = function(filename, options) {
     const text = fs.readFileSync(filename, 'utf8')
     return parseSheet(text, options)
 }
@@ -31,23 +32,31 @@ function parseSheet(text, options = {}) {
     for (const nodeData of yamlNodes) {
         builder.addNodeData(nodeData)
     }
-    const [graph] = builder.build()
-    graph.colorNodes()
+    const graphs = builder.build()
 
     const {
         plain = true,
     } = options
 
-    return {
-        title: yaml.title,
+    return graphs.map(graph => ({
+        title: yaml.title + graph.suffix,
         unit: yaml.unit,
         width: yaml.width || DEFAULT_WIDTH,
         height: yaml.height ||DEFAULT_HEIGHT,
         nodes: graph.nodes.map(node => plain ? node.toJSON() : node),
         links: graph.links.map(link => plain ? link.toJSON() : link),
-    }
+    }))
 }
 exports.parseSheet = parseSheet
+
+function parseSingleSheet(text, options) {
+    const graphs = parseSheet(text, options)
+    if (graphs.length > 1) {
+        throw Error('Sheet contains multiple graphs')
+    }
+    return graphs[0]
+}
+exports.parseSingleSheet = parseSingleSheet
 
 function includeSubsheets(totalNodes, yamlSheet) {
     for (const filename of (yamlSheet.embed || [])) {
@@ -71,6 +80,7 @@ class GraphBuilder {
             const alternativeNodes = values.map(value => {
                 const clone = cloneDeep(data)
                 clone.value = value
+                return clone
             })
 
             const newCollections = []
@@ -88,10 +98,13 @@ class GraphBuilder {
     }
 
     build() {
-        return this.nodeCollections.map(collection => collection.toGraph())
+        const graphs = this.nodeCollections.map(collection => collection.toGraph())
+        for (const graph of graphs) {
+            graph.colorNodes()
+        }
+        return graphs
     }
 }
-
 
 /**
  * Collects nodes as plain objects and provides a method to convert them to a finished graph.
@@ -104,6 +117,7 @@ class NodeCollection {
          * is easier to deep clone the collection.
          */
         this._map = new Map()
+        this.suffix = ''
     }
 
     /**
@@ -123,16 +137,18 @@ class NodeCollection {
     }
 
     clone() {
-        const clone = new Map()
+        const clone = new NodeCollection()
         for (const [key, value] of this._map.entries()) {
-            clone.set(key, cloneDeep(value))
+            clone._map.set(key, cloneDeep(value))
         }
+        clone.suffix = this.suffix
         return clone
     }
 
     cloneAndAdd(nodeData) {
         const clone = this.clone()
         clone.add(nodeData)
+        clone.suffix += '-' + nodeData.value
         return clone
     }
 
@@ -149,7 +165,10 @@ class NodeCollection {
         autovivifyNodes(nodeMap)
         linkNodes(nodeMap)
         const orderedNodes = toOrderedNodeArray(nodeMap)
-        return new Graph(orderedNodes)
+        return new Graph({
+            nodes: orderedNodes,
+            suffix: this.suffix,
+        })
     }
 }
 
@@ -196,17 +215,11 @@ function linkNodes(nodeMap) {
 function toOrderedNodeArray(nodeMap) {
     const orderedMap = new Map()
     for (const node of nodeMap.values()) {
-        recurse(node)
+        visitNodeTree(node, node => {
+            if (!orderedMap.has(node)) {
+                orderedMap.set(node.name, node)
+            }
+        })
     }
     return [...orderedMap.values()]
-
-    function recurse(node) {
-        if (!orderedMap.has(node)) {
-            orderedMap.set(node.name, node)
-        }
-
-        for (const link of node.outgoingLinks) {
-            recurse(link.targetNode)
-        }
-    }
 }
