@@ -1,6 +1,9 @@
 const fs = require('fs');
 const jsYaml = require('js-yaml')
-const _ = require('lodash')
+const {
+    cloneDeep,
+    uniq,
+} = require('lodash')
 
 const {
     Graph,
@@ -25,10 +28,10 @@ function parseSheet(text, options = {}) {
     includeSubsheets(yamlNodes, yaml)
 
     const builder = new GraphBuilder()
-    yamlNodes.forEach(node => builder.addNode(node))
-    builder.autovivifyNodes()
-    builder.linkNodes()
-    const graph = builder.build()
+    for (const nodeData of yamlNodes) {
+        builder.addNodeData(nodeData)
+    }
+    const [graph] = builder.build()
     graph.colorNodes()
 
     const {
@@ -55,91 +58,155 @@ function includeSubsheets(totalNodes, yamlSheet) {
     }
 }
 
-/**
- * Allows a graph to be built node by node so that the resulting graph can then be immutable.
- */
 class GraphBuilder {
 
     constructor() {
-        this.nodeMap = new Map()
+        this.nodeCollections = [new NodeCollection()]
     }
 
-    addNode(data) {
-        if (this.nodeMap.has(data.name)) {
-            const existingNode = this.nodeMap.get(data.name)
-            existingNode.addLinks(data.links || [])
-        } else {
-            this.nodeMap.set(data.name, new Node(data))
+    addNodeData(data) {
+        const { value } = data
+        if (typeof value === 'string') {
+            const values = value.split('|')
+            const alternativeNodes = values.map(value => {
+                const clone = cloneDeep(data)
+                clone.value = value
+            })
+
+            const newCollections = []
+            for (const node of alternativeNodes) {
+                for (const collection of this.nodeCollections) {
+                    newCollections.push(collection.cloneAndAdd(node))
+                }
+            }
+            this.nodeCollections = newCollections
+        }
+
+        for (const collection of this.nodeCollections) {
+            collection.add(data)
         }
     }
 
     build() {
-        this.autovivifyNodes()
-        this.linkNodes()
-        this.orderNodes()
-        return new Graph(this.nodes)
-        // TODO: Return a list in order to support union syntax
+        return this.nodeCollections.map(collection => collection.toGraph())
+    }
+}
+
+
+/**
+ * Collects nodes as plain objects and provides a method to convert them to a finished graph.
+ */
+class NodeCollection {
+
+    constructor() {
+        /**
+         * Maps names to node data. The values are plain objects and not Node instances. By storing plain objects, it
+         * is easier to deep clone the collection.
+         */
+        this._map = new Map()
     }
 
     /**
-     * Automatically creates any nodes that haven't been explicitly defined but are referenced by links.
+     * Mutates this instance by adding the given node data.
      */
-    autovivifyNodes() {
-        const missingTargets = this.nodes
-            .flatMap(node => node.originalLinks)
-            .map(link => link.to)
-            .filter(target => !this.nodeMap.has(target))
+    add(nodeData) {
+        const { name } = nodeData
 
-        for (const target of _.uniq(missingTargets)) {
-            this.addNode({
-                name: target,
+        if (this._map.has(name)) {
+            const existing = this._map.get(name)
+            const clone = cloneDeep(existing)
+            clone.links.push(...nodeData.links || [])
+            this._map.set(name, clone)
+        } else {
+            this._map.set(name, nodeData)
+        }
+    }
+
+    clone() {
+        const clone = new Map()
+        for (const [key, value] of this._map.entries()) {
+            clone.set(key, cloneDeep(value))
+        }
+        return clone
+    }
+
+    cloneAndAdd(nodeData) {
+        const clone = this.clone()
+        clone.add(nodeData)
+        return clone
+    }
+
+    toNodeMap() {
+        const nodeMap = new Map()
+        for (const [name, nodeData] of this._map) {
+            nodeMap.set(name, new Node(nodeData))
+        }
+        return nodeMap
+    }
+
+    toGraph() {
+        const nodeMap = this.toNodeMap()
+        autovivifyNodes(nodeMap)
+        linkNodes(nodeMap)
+        const orderedNodes = toOrderedNodeArray(nodeMap)
+        return new Graph(orderedNodes)
+    }
+}
+
+/**
+ * Automatically creates any nodes that haven't been explicitly defined but are referenced by a link in another node.
+ */
+function autovivifyNodes(nodeMap) {
+    const referencedNames = new Set()
+    for (const node of nodeMap.values()) {
+        for (const link of node.originalLinks) {
+            referencedNames.add(link.to)
+        }
+    }
+
+    for (const nodeName of referencedNames) {
+        if (!nodeMap.has(nodeName)) {
+            nodeMap.set(nodeName, new Node({
+                name: nodeName
+            }))
+        }
+    }
+}
+
+function linkNodes(nodeMap) {
+    for (const node of nodeMap.values()) {
+        node.incomingLinks = []
+    }
+
+    for (const node of nodeMap.values()) {
+        node.outgoingLinks = node.originalLinks.map(linkData => {
+            const link = new Link({
+                sourceNode: node,
+                targetNode: nodeMap.get(linkData.to),
+                value: linkData.value,
+                color: linkData.color,
+                nodeLookup: name => nodeMap.get(name)
             })
-        }
+            link.targetNode.incomingLinks.push(link)
+            return link
+        })
     }
+}
 
-    linkNodes() {
-        for (const node of this.nodes) {
-            node.incomingLinks = []
-        }
-
-        for (const node of this.nodes) {
-            node.outgoingLinks = node.originalLinks.map(linkData => {
-                const link = new Link({
-                    sourceNode: node,
-                    targetNode: this.getByName(linkData.to),
-                    value: linkData.value,
-                    color: linkData.color,
-                    nodeLookup: name => this.getByName(name)
-                })
-                link.targetNode.incomingLinks.push(link)
-                return link
-            })
-        }
+function toOrderedNodeArray(nodeMap) {
+    const orderedMap = new Map()
+    for (const node of nodeMap.values()) {
+        recurse(node)
     }
+    return [...orderedMap.values()]
 
-    orderNodes() {
-        const orderedMap = new Map()
-        for (const node of this.nodes) {
-            recurse(node)
+    function recurse(node) {
+        if (!orderedMap.has(node)) {
+            orderedMap.set(node.name, node)
         }
-        this.nodeMap = orderedMap
 
-        function recurse(node) {
-            if (!orderedMap.has(node)) {
-                orderedMap.set(node.name, node)
-            }
-
-            for (const link of node.outgoingLinks) {
-                recurse(link.targetNode)
-            }
+        for (const link of node.outgoingLinks) {
+            recurse(link.targetNode)
         }
-    }
-
-    getByName(name) {
-        return this.nodeMap.get(name)
-    }
-
-    get nodes() {
-        return Array.from(this.nodeMap.values())
     }
 }
