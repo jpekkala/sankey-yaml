@@ -9,13 +9,12 @@ const fs = require('fs');
 const { parseSheetFile } = require('./sheetParser')
 
 const hoverFormat = d3.format(",.0f");
-const SHEET_FOLDER = './sheets'
 const OUTPUT_FOLDER = './pics'
 
 function generateFromFolder(folderName) {
     const sheetFiles = fs.readdirSync(folderName)
         .filter(fileName => fileName.endsWith('.yaml'))
-        .map(fileName => SHEET_FOLDER + '/' + fileName)
+        .map(fileName => folderName + '/' + fileName)
 
     for (const fileName of sheetFiles) {
         generateFromFile(fileName)
@@ -28,7 +27,7 @@ function generateFromFile(fileName) {
     console.log(`Generating ${graphs.length} chart(s) from ${fileName}`)
     graphs.forEach(generateChart)
 }
-exports.generateFromFile = generateFromFolder
+exports.generateFromFile = generateFromFile
 
 function generateChart(data) {
     const dom = new JSDOM('<!DOCTYPE html><body></body>');
@@ -138,8 +137,4 @@ function drawDiagram(svg, data) {
 
 function isTextInsideRect(d, data) {
     return d.x0 < 100
-}
-
-if (require.main === module) {
-    generateFromFolder(SHEET_FOLDER)
 }
