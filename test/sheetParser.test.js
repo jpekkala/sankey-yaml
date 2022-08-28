@@ -141,4 +141,17 @@ describe('sheetParser', function() {
             assert.equal(nodes[2].value, 500)
         }
     })
+
+    it('should automatically set value for top-level node if missing', () => {
+        const yaml = `
+        nodes:
+            - name: A
+              links:
+                - { to: B, value: 200 }
+                - { to: C, value: 300 }
+        `
+
+        const { nodes } = parseSingleSheet(yaml)
+        assert.equal(nodes[0].value, 500)
+    })
 })

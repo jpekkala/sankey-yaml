@@ -76,9 +76,16 @@ class Node {
             return this.explicitValue
         }
 
-        return this.incomingLinks.reduce((sum, link) => {
-            return sum + link.value
-        }, 0)
+        if (this.incomingLinks.length === 0) {
+            // top-level node
+            return this.outgoingLinks.reduce((sum, link) => {
+              return sum + link.value
+            }, 0)
+        } else {
+            return this.incomingLinks.reduce((sum, link) => {
+                return sum + link.value
+            }, 0)
+        }
     }
 
     get outgoingValue() {
