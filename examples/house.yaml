@@ -1,0 +1,17 @@
+title: House
+width: 800
+height: 600
+unit: €
+nodes:
+  - name: House
+    color: '#144982'
+    links:
+      - { to: House loan, value: auto }
+      - { to: Internet, value: 35 }
+      - { to: Electricity, value: 100 }
+      - { to: Home insurance, value: 20 }
+
+  - name: House loan
+    links:
+      - { to: Amortization (house), value: 800, color: green }
+      - { to: Interest (house), value: 100 }

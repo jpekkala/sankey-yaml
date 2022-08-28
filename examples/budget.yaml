@@ -1,0 +1,32 @@
+title: Budget
+width: 800
+height: 600
+unit: €
+nodes:
+  - name: Budget
+    color: '#997548'
+    links:
+      - { to: House, value: auto }
+      - { to: Food, value: auto }
+      - { to: Car, value: auto }
+      - { to: Travel, value: 200, color: '#ff7518' }
+
+  - name: Food
+    color: orange
+    links:
+      - { to: Grocery stores, value: 400 }
+      - { to: Restaurants, value: 200 }
+
+  - name: Car
+    color: '#5c043a'
+    links:
+      - { to: Car service, value: 30 }
+      - { to: Car insurance, value: 50 }
+      - { to: Car tax, value: 20 }
+      - { to: Fuel, value: 100 }
+
+  - name: Fuel
+    description: '1000km * 6.5L/100km * 2e/L'
+
+embed:
+  - ./examples/house.yaml
