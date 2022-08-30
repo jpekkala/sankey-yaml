@@ -11,10 +11,10 @@ exports.generateFromFile = generateFromFile
 exports.generateFromFolder = generateFromFolder
 exports.registerPlugin = registerPlugin
 
-function main() {
+async function main() {
     const SHEET_FOLDER = './sheets'
 
-    const fs = require('fs')
+    const fsPromises = require('fs').promises
     const process = require('process')
     const { Command } = require('commander')
     const program = new Command()
@@ -27,21 +27,25 @@ function main() {
 
     const [inputPath] = program.processedArgs
 
-    if (!fs.existsSync(inputPath)) {
+    let stat
+    try {
+        stat = await fsPromises.lstat(inputPath)
+    } catch (err) {
         console.error(`The input path "${inputPath}" is not file or folder`)
         process.exit(1)
     }
 
-    const stat = fs.lstatSync(inputPath)
     if (stat.isDirectory()) {
-        generateFromFolder(inputPath)
+        await generateFromFolder(inputPath)
     } else if (stat.isFile()) {
-        generateFromFile(inputPath)
+        await generateFromFile(inputPath)
     } else {
         throw Error('Invalid file type')
     }
 }
 
 if (require.main === module) {
-    main();
+    main().catch(err => {
+        console.error(err)
+    })
 }

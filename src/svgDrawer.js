@@ -4,26 +4,26 @@ const { JSDOM } = require('jsdom');
 const dayjs = require('dayjs');
 const d3 = require('d3');
 const d3Sankey = require('d3-sankey');
-const fs = require('fs');
+const fsPromises = require('fs').promises;
 
 const { parseSheetFile } = require('./sheetParser')
 
 const hoverFormat = d3.format(",.0f");
 const OUTPUT_FOLDER = './pics'
 
-function generateFromFolder(folderName) {
-    const sheetFiles = fs.readdirSync(folderName)
+async function generateFromFolder(folderName) {
+    const sheetFiles = (await fsPromises.readdir(folderName))
         .filter(fileName => fileName.endsWith('.yaml'))
         .map(fileName => folderName + '/' + fileName)
 
     for (const fileName of sheetFiles) {
-        generateFromFile(fileName)
+        await generateFromFile(fileName)
     }
 }
 exports.generateFromFolder = generateFromFolder
 
-function generateFromFile(fileName) {
-    const graphs = parseSheetFile(fileName)
+async function generateFromFile(fileName) {
+    const graphs = await parseSheetFile(fileName)
     console.log(`Generating ${graphs.length} chart(s) from ${fileName}`)
     graphs.forEach(generateChart)
 }
@@ -52,11 +52,11 @@ function generateChart(data) {
         .text('Generated on ' + now.format('YYYY-MM-DD'))
         .append('title').text(now.format())
 
-    if (!fs.existsSync(OUTPUT_FOLDER)) {
-        fs.mkdirSync(OUTPUT_FOLDER);
+    if (!fsPromises.existsSync(OUTPUT_FOLDER)) {
+        fsPromises.mkdirSync(OUTPUT_FOLDER);
     }
     const outputFile = OUTPUT_FOLDER + '/' + (data.title || 'out') + '.svg'
-    fs.writeFileSync(outputFile, body.html());
+    fsPromises.writeFileSync(outputFile, body.html());
     console.log(`Saved to ${outputFile}`)
 }
 

@@ -152,6 +152,33 @@ describe('sheetParser', function() {
         `
 
         const { nodes } = parseSingleSheet(yaml)
+        assert.lengthOf(nodes, 3)
         assert.equal(nodes[0].value, 500)
+    })
+
+    it('should embed subsheets', () => {
+        const yaml = `
+        nodes:
+            - name: A
+              links:
+                - { to: B }
+        embed:
+            - sheetB`
+
+        const subsheet = `
+        nodes:
+            - name: B
+              value: 100
+              links:
+                - { to: C, value: 200 }`
+
+        const { nodes } = parseSingleSheet(yaml, {
+            getSubsheet: sheetName => sheetName === 'sheetB' ? subsheet : null,
+        })
+
+        assert.lengthOf(nodes, 3)
+        assert.equal(nodes[0].name, 'A')
+        assert.equal(nodes[1].name, 'B')
+        assert.equal(nodes[2].name, 'C')
     })
 })

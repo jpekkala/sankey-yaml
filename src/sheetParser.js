@@ -1,8 +1,7 @@
-const fs = require('fs');
+const fsPromises = require('fs').promises;
 const jsYaml = require('js-yaml')
 const {
     cloneDeep,
-    uniq,
 } = require('lodash')
 
 const {
@@ -15,19 +14,55 @@ const {
 const DEFAULT_WIDTH = 800
 const DEFAULT_HEIGHT = 600
 
-exports.parseSheetFile = function(filename, options) {
-    const text = fs.readFileSync(filename, 'utf8')
-    return parseSheet(text, options)
+exports.parseSheetFile = async function(filename, options) {
+    const text = await fsPromises.readFile(filename, 'utf8')
+    return parseSheetAsync(text, options)
 }
 
 /**
  * Parses a string containing YAML.
  */
-function parseSheet(text, options = {}) {
-    const yaml = jsYaml.load(text)
-    const yamlNodes = yaml.nodes
-    includeSubsheets(yamlNodes, yaml)
+async function parseSheetAsync(text, options = {}) {
+    const yamlSheet = jsYaml.load(text)
+    const yamlNodes = yamlSheet.nodes
 
+    if (yamlSheet.embed) {
+        const {
+            getSubsheet = sheetName => fsPromises.readFile(sheetName, 'utf8')
+        } = options
+        const subSheetNodes = await includeSubsheetsAsync({
+            getSubsheet,
+            yamlSheet
+        })
+        yamlNodes.push(...subSheetNodes)
+    }
+
+    return buildGraphs(yamlSheet, yamlNodes, options)
+}
+exports.parseSheetAsync = parseSheetAsync
+
+function parseSheet(text, options = {}) {
+    const yamlSheet = jsYaml.load(text)
+    const yamlNodes = yamlSheet.nodes
+
+    if (yamlSheet.embed) {
+        const {
+            getSubsheet,
+        } = options
+        if (!getSubsheet) {
+            throw Error('getSubsheet must be defined when embedding subsheets in sync mode')
+        }
+        const subSheetNodes = includeSubsheets({
+            getSubsheet,
+            yamlSheet
+        })
+        yamlNodes.push(...subSheetNodes)
+    }
+    return buildGraphs(yamlSheet, yamlNodes, options)
+}
+exports.parseSheet = parseSheet
+
+function buildGraphs(yaml, yamlNodes, options) {
     const builder = new GraphBuilder()
     for (const nodeData of yamlNodes) {
         builder.addNodeData(nodeData)
@@ -42,12 +77,11 @@ function parseSheet(text, options = {}) {
         title: yaml.title + graph.suffix,
         unit: yaml.unit,
         width: yaml.width || DEFAULT_WIDTH,
-        height: yaml.height ||DEFAULT_HEIGHT,
+        height: yaml.height || DEFAULT_HEIGHT,
         nodes: graph.nodes.map(node => plain ? node.toJSON() : node),
         links: graph.links.map(link => plain ? link.toJSON() : link),
     }))
 }
-exports.parseSheet = parseSheet
 
 function parseSingleSheet(text, options) {
     const graphs = parseSheet(text, options)
@@ -58,13 +92,27 @@ function parseSingleSheet(text, options) {
 }
 exports.parseSingleSheet = parseSingleSheet
 
-function includeSubsheets(totalNodes, yamlSheet) {
-    for (const filename of (yamlSheet.embed || [])) {
-        const text = fs.readFileSync(filename, 'utf8')
+function includeSubsheets({ yamlSheet, getSubsheet }) {
+    const subNodeArrays = (yamlSheet.embed || []).map(sheetName => {
+        const text = getSubsheet(sheetName)
         const subsheet = jsYaml.load(text)
-        totalNodes.push(...subsheet.nodes)
-        includeSubsheets(totalNodes, subsheet)
-    }
+        const nodes = subsheet.nodes
+        const subNodes = includeSubsheets({ yamlSheet: subsheet, getSubsheet })
+        return [...nodes, ...subNodes]
+    })
+    return subNodeArrays.flat()
+}
+
+async function includeSubsheetsAsync({ yamlSheet, getSubsheet }) {
+    const arrayPromises = (yamlSheet.embed || []).map(async sheetName => {
+        const text = await getSubsheet(sheetName)
+        const subsheet = jsYaml.load(text)
+        const nodes = subsheet.nodes
+        const subNodes = await includeSubsheetsAsync({ yamlSheet: subsheet, getSubsheet })
+        return [...nodes, subNodes]
+    })
+    const subNodeArrays = await Promise.all(arrayPromises)
+    return subNodeArrays.flat()
 }
 
 class GraphBuilder {
