@@ -1,4 +1,4 @@
-const fsPromises = require('fs').promises;
+const fsPromises = require('fs').promises
 const jsYaml = require('js-yaml')
 const {
     cloneDeep,

@@ -13,7 +13,7 @@ describe('sheetParser', function() {
               links:
                 - { to: Child, value: 1000 }
         `
-        const { nodes, links } = parseSingleSheet(yaml)
+        const { nodes } = parseSingleSheet(yaml)
         assert.lengthOf(nodes, 2)
         assert.equal(nodes[0].name, 'Parent')
         assert.equal(nodes[1].name, 'Child')

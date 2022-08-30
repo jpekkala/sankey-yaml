@@ -1,4 +1,4 @@
-const d3 = require('d3');
+const d3 = require('d3')
 const { callLinkPlugin } = require('./plugins')
 
 /**
@@ -12,7 +12,7 @@ class Graph {
     }
 
     colorNodes() {
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
 
         for (const node of this.nodes) {
             colorNode(node)
@@ -79,7 +79,7 @@ class Node {
         if (this.incomingLinks.length === 0) {
             // top-level node
             return this.outgoingLinks.reduce((sum, link) => {
-              return sum + link.value
+                return sum + link.value
             }, 0)
         } else {
             return this.incomingLinks.reduce((sum, link) => {
