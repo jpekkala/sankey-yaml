@@ -14,7 +14,7 @@ exports.registerPlugin = registerPlugin
 async function main() {
     const SHEET_FOLDER = './sheets'
 
-    const fsPromises = require('fs').promises
+    const fs = require('fs')
     const process = require('process')
     const { Command } = require('commander')
     const program = new Command()
@@ -29,7 +29,7 @@ async function main() {
 
     let stat
     try {
-        stat = await fsPromises.lstat(inputPath)
+        stat = await fs.promises.lstat(inputPath)
     } catch (err) {
         console.error(`The input path "${inputPath}" is not file or folder`)
         process.exit(1)

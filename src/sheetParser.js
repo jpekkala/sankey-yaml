@@ -179,6 +179,9 @@ class NodeCollection {
         if (this._map.has(name)) {
             const existing = this._map.get(name)
             const clone = cloneDeep(existing)
+            if (!clone.links) {
+                clone.links = []
+            }
             clone.links.push(...nodeData.links || [])
             this._map.set(name, clone)
         } else {
