@@ -10,6 +10,7 @@ const {
 exports.generateFromFile = generateFromFile
 exports.generateFromFolder = generateFromFolder
 exports.registerPlugin = registerPlugin
+exports.main = main
 
 async function main() {
     const SHEET_FOLDER = './sheets'

@@ -2,6 +2,7 @@ const { assert } = require('chai')
 const {
     parseSingleSheet,
     parseSheet,
+    parseSheetAsync,
 } = require('../src/sheetParser')
 
 describe('sheetParser', function() {
@@ -156,7 +157,7 @@ describe('sheetParser', function() {
         assert.equal(nodes[0].value, 500)
     })
 
-    it('should embed subsheets', () => {
+    it('should embed subsheets', async () => {
         const yaml = `
         nodes:
             - name: A
@@ -165,20 +166,40 @@ describe('sheetParser', function() {
         embed:
             - sheetB`
 
-        const subsheet = `
+        const sheetB = `
         nodes:
             - name: B
+              links:
+                - { to: C }
+        embed:
+            - sheetC`
+
+        const sheetC = `
+        nodes:
+            - name: C
               value: 100
               links:
-                - { to: C, value: 200 }`
+                - { to: D, value: 200 }`
 
-        const { nodes } = parseSingleSheet(yaml, {
-            getSubsheet: sheetName => sheetName === 'sheetB' ? subsheet : null,
+        const sheetMap = {
+            sheetB,
+            sheetC,
+        }
+
+        const graphsSync = parseSheet(yaml, {
+            getSubsheet: sheetName => sheetMap[sheetName]
         })
-
-        assert.lengthOf(nodes, 3)
+        assert.lengthOf(graphsSync, 1)
+        const { nodes } = graphsSync[0]
+        assert.lengthOf(nodes, 4)
         assert.equal(nodes[0].name, 'A')
         assert.equal(nodes[1].name, 'B')
         assert.equal(nodes[2].name, 'C')
+        assert.equal(nodes[3].name, 'D')
+
+        const graphsAsync = await parseSheetAsync(yaml, {
+            getSubsheet: sheetName => sheetMap[sheetName]
+        })
+        assert.deepEqual(graphsSync, graphsAsync, 'The sync and async variants should return the same result')
     })
 })

@@ -41,6 +41,9 @@ async function parseSheetAsync(text, options = {}) {
 }
 exports.parseSheetAsync = parseSheetAsync
 
+/**
+ * The same as parseSheetAsync but does not support loading subsheets synchronously (e.g. from disk)
+ */
 function parseSheet(text, options = {}) {
     const yamlSheet = jsYaml.load(text)
     const yamlNodes = yamlSheet.nodes
@@ -109,7 +112,7 @@ async function includeSubsheetsAsync({ yamlSheet, getSubsheet }) {
         const subsheet = jsYaml.load(text)
         const nodes = subsheet.nodes
         const subNodes = await includeSubsheetsAsync({ yamlSheet: subsheet, getSubsheet })
-        return [...nodes, subNodes]
+        return [...nodes, ...subNodes]
     })
     const subNodeArrays = await Promise.all(arrayPromises)
     return subNodeArrays.flat()
