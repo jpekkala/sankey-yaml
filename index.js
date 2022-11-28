@@ -25,7 +25,6 @@ async function main() {
         .argument('[in]', 'The file or folder where to read YAML from', SHEET_FOLDER)
         .parse()
 
-
     const [inputPath] = program.processedArgs
 
     let stat
