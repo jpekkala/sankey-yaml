@@ -1,5 +1,3 @@
-require('./shims')
-
 const { JSDOM } = require('jsdom')
 const dayjs = require('dayjs')
 const d3 = require('d3')
