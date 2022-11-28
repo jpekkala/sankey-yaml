@@ -1,3 +1,7 @@
+const process = require('process')
+const fs = require('fs')
+const { Command } = require('commander')
+
 const {
     generateFromFile,
     generateFromFolder,
@@ -12,18 +16,15 @@ exports.generateFromFolder = generateFromFolder
 exports.registerPlugin = registerPlugin
 exports.main = main
 
-async function main() {
+async function main(argv) {
     const SHEET_FOLDER = './sheets'
 
-    const fs = require('fs')
-    const process = require('process')
-    const { Command } = require('commander')
     const program = new Command()
     program
         .name('budget')
         .description('Generates Sankey charts from YAML files')
         .argument('[in]', 'The file or folder where to read YAML from', SHEET_FOLDER)
-        .parse()
+        .parse(argv)
 
     const [inputPath] = program.processedArgs
 
@@ -31,8 +32,7 @@ async function main() {
     try {
         stat = await fs.promises.lstat(inputPath)
     } catch (err) {
-        console.error(`The input path "${inputPath}" is not file or folder`)
-        process.exit(1)
+        throw Error(`The path "${inputPath}" is not file or folder`)
     }
 
     if (stat.isDirectory()) {
@@ -45,7 +45,8 @@ async function main() {
 }
 
 if (require.main === module) {
-    main().catch(err => {
+    main(process.argv).catch(err => {
         console.error(err)
+        process.exit(1)
     })
 }

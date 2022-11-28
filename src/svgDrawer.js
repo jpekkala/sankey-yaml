@@ -5,13 +5,15 @@ const d3Sankey = require('d3-sankey')
 const fs = require('fs')
 
 const { parseSheetFile } = require('./sheetParser')
+const {
+    OUTPUT_FOLDER,
+} = require('./constants')
 
 const hoverFormat = d3.format(',.0f')
-const OUTPUT_FOLDER = './pics'
 
 async function generateFromFolder(folderName) {
     const sheetFiles = (await fs.promises.readdir(folderName))
-        .filter(fileName => fileName.endsWith('.yaml'))
+        .filter(fileName => /\.ya?ml$/.test(fileName))
         .map(fileName => folderName + '/' + fileName)
 
     for (const fileName of sheetFiles) {
