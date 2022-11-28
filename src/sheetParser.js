@@ -232,17 +232,18 @@ class NodeCollection {
  * Automatically creates any nodes that haven't been explicitly defined but are referenced by a link in another node.
  */
 function autovivifyNodes(nodeMap) {
-    const referencedNames = new Set()
+    const referencedNodes = new Map()
     for (const node of nodeMap.values()) {
         for (const link of node.originalLinks) {
-            referencedNames.add(link.to)
+            referencedNodes.set(link.to, link)
         }
     }
 
-    for (const nodeName of referencedNames) {
+    for (const [nodeName, link] of referencedNodes.entries()) {
         if (!nodeMap.has(nodeName)) {
             nodeMap.set(nodeName, new Node({
-                name: nodeName
+                name: nodeName,
+                description: link.description,
             }))
         }
     }

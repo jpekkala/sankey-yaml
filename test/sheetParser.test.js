@@ -12,12 +12,13 @@ describe('sheetParser', function() {
         nodes:
             - name: Parent
               links:
-                - { to: Child, value: 1000 }
+                - { to: Child, value: 1000, description: 'Description' }
         `
         const { nodes } = parseSingleSheet(yaml)
         assert.lengthOf(nodes, 2)
         assert.equal(nodes[0].name, 'Parent')
         assert.equal(nodes[1].name, 'Child')
+        assert.equal(nodes[1].description, 'Description')
     })
 
     it('should set parent prop', () => {
