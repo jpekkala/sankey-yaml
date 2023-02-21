@@ -165,7 +165,7 @@ describe('sheetParser', function() {
               links:
                 - { to: B }
         embed:
-            - sheetB`
+            - B.yaml`
 
         const sheetB = `
         nodes:
@@ -173,7 +173,7 @@ describe('sheetParser', function() {
               links:
                 - { to: C }
         embed:
-            - sheetC`
+            - C.yaml`
 
         const sheetC = `
         nodes:
@@ -182,13 +182,13 @@ describe('sheetParser', function() {
               links:
                 - { to: D, value: 200 }`
 
-        const sheetMap = {
-            sheetB,
-            sheetC,
+        const files = {
+            'B.yaml': sheetB,
+            'C.yaml': sheetC,
         }
 
         const graphsSync = parseSheet(yaml, {
-            getSubsheet: sheetName => sheetMap[sheetName]
+            getFile: fileName => files[fileName]
         })
         assert.lengthOf(graphsSync, 1)
         const { nodes } = graphsSync[0]
@@ -199,8 +199,27 @@ describe('sheetParser', function() {
         assert.equal(nodes[3].name, 'D')
 
         const graphsAsync = await parseSheetAsync(yaml, {
-            getSubsheet: sheetName => sheetMap[sheetName]
+            getFile: fileName => files[fileName]
         })
         assert.deepEqual(graphsSync, graphsAsync, 'The sync and async variants should return the same result')
+    })
+
+    it.skip('should translate sheets', () => {
+        const yaml = `
+        nodes:
+            - name: Cat
+              links:
+                - { to: Dog }
+        translations:
+            - fi: finnish.json`
+
+        const files = {
+            'finnish.json': '{ "Cat": "Kissa", "Dog": "Koira" }'
+        }
+
+        const graphs = parseSheet(yaml, {
+            getFile: fileName => files[fileName]
+        })
+        assert.lengthOf(graphs, 2)
     })
 })

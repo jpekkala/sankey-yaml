@@ -23,15 +23,16 @@ exports.parseSheetFile = async function(filename, options) {
  * Parses a string containing YAML.
  */
 async function parseSheetAsync(text, options = {}) {
+    const {
+        getFile = sheetName => fsPromises.readFile(sheetName, 'utf8')
+    } = options
+
     const yamlSheet = jsYaml.load(text)
     const yamlNodes = yamlSheet.nodes
 
     if (yamlSheet.embed) {
-        const {
-            getSubsheet = sheetName => fsPromises.readFile(sheetName, 'utf8')
-        } = options
         const subSheetNodes = await includeSubsheetsAsync({
-            getSubsheet,
+            getFile,
             yamlSheet
         })
         yamlNodes.push(...subSheetNodes)
@@ -45,23 +46,28 @@ exports.parseSheetAsync = parseSheetAsync
  * The same as parseSheetAsync but does not support loading subsheets synchronously (e.g. from disk)
  */
 function parseSheet(text, options = {}) {
+    const {
+        getFile,
+    } = options
+
     const yamlSheet = jsYaml.load(text)
     const yamlNodes = yamlSheet.nodes
 
     if (yamlSheet.embed) {
-        const {
-            getSubsheet,
-        } = options
-        if (!getSubsheet) {
-            throw Error('getSubsheet must be defined when embedding subsheets in sync mode')
+        if (!getFile) {
+            throw Error('getFile must be defined when embedding subsheets in sync mode')
         }
         const subSheetNodes = includeSubsheets({
-            getSubsheet,
+            getFile,
             yamlSheet
         })
         yamlNodes.push(...subSheetNodes)
     }
-    return buildGraphs(yamlSheet, yamlNodes, options)
+    const graphs = buildGraphs(yamlSheet, yamlNodes, options)
+    if (yamlSheet.translations) {
+
+    }
+    return graphs
 }
 exports.parseSheet = parseSheet
 
@@ -95,23 +101,23 @@ function parseSingleSheet(text, options) {
 }
 exports.parseSingleSheet = parseSingleSheet
 
-function includeSubsheets({ yamlSheet, getSubsheet }) {
+function includeSubsheets({ yamlSheet, getFile }) {
     const subNodeArrays = (yamlSheet.embed || []).map(sheetName => {
-        const text = getSubsheet(sheetName)
+        const text = getFile(sheetName)
         const subsheet = jsYaml.load(text)
         const nodes = subsheet.nodes
-        const subNodes = includeSubsheets({ yamlSheet: subsheet, getSubsheet })
+        const subNodes = includeSubsheets({ yamlSheet: subsheet, getFile })
         return [...nodes, ...subNodes]
     })
     return subNodeArrays.flat()
 }
 
-async function includeSubsheetsAsync({ yamlSheet, getSubsheet }) {
+async function includeSubsheetsAsync({ yamlSheet, getFile }) {
     const arrayPromises = (yamlSheet.embed || []).map(async sheetName => {
-        const text = await getSubsheet(sheetName)
+        const text = await getFile(sheetName)
         const subsheet = jsYaml.load(text)
         const nodes = subsheet.nodes
-        const subNodes = await includeSubsheetsAsync({ yamlSheet: subsheet, getSubsheet })
+        const subNodes = await includeSubsheetsAsync({ yamlSheet: subsheet, getFile })
         return [...nodes, ...subNodes]
     })
     const subNodeArrays = await Promise.all(arrayPromises)
@@ -134,14 +140,15 @@ class GraphBuilder {
                 return clone
             })
 
-            const newCollections = []
-            for (const node of alternativeNodes) {
-                for (const collection of this.nodeCollections) {
+            this.nodeCollections = alternativeNodes.flatMap(node => {
+                return this.nodeCollections.map(collection => {
                     const nodeCopy = cloneDeep(node)
-                    newCollections.push(collection.cloneAndAdd(nodeCopy))
-                }
-            }
-            this.nodeCollections = newCollections
+                    const collectionCopy = collection.clone()
+                    collectionCopy.add(nodeCopy)
+                    collectionCopy.suffix += '-' + nodeCopy.value
+                    return collectionCopy
+                })
+            })
         } else {
             for (const collection of this.nodeCollections) {
                 const nodeCopy = cloneDeep(data)
@@ -201,13 +208,6 @@ class NodeCollection {
         return clone
     }
 
-    cloneAndAdd(nodeData) {
-        const clone = this.clone()
-        clone.add(nodeData)
-        clone.suffix += '-' + nodeData.value
-        return clone
-    }
-
     toNodeMap() {
         const nodeMap = new Map()
         for (const [name, nodeData] of this._map) {
@@ -261,7 +261,6 @@ function linkNodes(nodeMap) {
                 targetNode: nodeMap.get(linkData.to),
                 value: linkData.value,
                 color: linkData.color,
-                nodeLookup: name => nodeMap.get(name)
             })
             link.targetNode.incomingLinks.push(link)
             return link
@@ -272,7 +271,7 @@ function linkNodes(nodeMap) {
 function toOrderedNodeArray(nodeMap) {
     const orderedMap = new Map()
     for (const node of nodeMap.values()) {
-        visitNodeTree(node, node => {
+        visitNodeTree(node, ({ node }) => {
             if (!orderedMap.has(node)) {
                 orderedMap.set(node.name, node)
             }
