@@ -25,4 +25,30 @@ describe('graph', function () {
         assert.equal(graph.links[0].sourceNode, graph.nodes[0])
         assert.equal(graph.links[0].targetNode, graph.nodes[1])
     })
+
+    it('should clone a graph', () => {
+        const [originalGraph] = new GraphBuilder()
+            .add({
+                name: 'A',
+                value: 200,
+                links: [{
+                    to: 'B',
+                    value: 300,
+                }]
+            })
+            .build()
+
+        const clone = originalGraph.clone()
+        assert.equal(clone.nodes.length, originalGraph.nodes.length)
+        for (const [i, node] of clone.nodes.entries()) {
+            assert.instanceOf(node, Node)
+            assert.notEqual(node, originalGraph.nodes[i])
+        }
+
+        assert.equal(clone.links.length, originalGraph.links.length)
+        for (const [i, link] of clone.links.entries()) {
+            assert.instanceOf(link, Link)
+            assert.notEqual(link, originalGraph.links[i])
+        }
+    })
 })

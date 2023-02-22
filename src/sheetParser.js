@@ -18,7 +18,8 @@ exports.parseSheetFile = async function(filename, options) {
  */
 async function parseSheetAsync(text, options = {}) {
     const {
-        getFile = sheetName => fsPromises.readFile(sheetName, 'utf8')
+        getFile = sheetName => fsPromises.readFile(sheetName, 'utf8'),
+        plain,
     } = options
 
     const yamlSheet = jsYaml.load(text)
@@ -32,7 +33,25 @@ async function parseSheetAsync(text, options = {}) {
         yamlNodes.push(...subSheetNodes)
     }
 
-    return buildGraphs(yamlSheet, yamlNodes, options)
+    let translations = []
+    if (yamlSheet.translations) {
+        const promises = Object.entries(yamlSheet.translations).map(async ([language, fileName]) => {
+            const file = await getFile(fileName)
+            const json = JSON.parse(file)
+            return {
+                language,
+                translateFn: key => json[key] ?? key,
+            }
+        })
+        translations = await Promise.all(promises)
+    }
+
+    return buildGraphs({
+        yamlSheet,
+        yamlNodes,
+        plain,
+        translations,
+    })
 }
 exports.parseSheetAsync = parseSheetAsync
 
@@ -42,6 +61,7 @@ exports.parseSheetAsync = parseSheetAsync
 function parseSheet(text, options = {}) {
     const {
         getFile,
+        plain,
     } = options
 
     const yamlSheet = jsYaml.load(text)
@@ -57,30 +77,51 @@ function parseSheet(text, options = {}) {
         })
         yamlNodes.push(...subSheetNodes)
     }
-    const graphs = buildGraphs(yamlSheet, yamlNodes, options)
-    if (yamlSheet.translations) {
 
+    let translations = []
+    if (yamlSheet.translations) {
+        if (!getFile) {
+            throw Error('getFile must be define when using translations in sync mode')
+        }
+        translations = Object.entries(yamlSheet.translations).map(([language, fileName]) => {
+            const file = getFile(fileName)
+            const json = JSON.parse(file)
+            return {
+                language,
+                translateFn: key => json[key] ?? key,
+            }
+        })
     }
-    return graphs
+
+    return buildGraphs({
+        yamlSheet,
+        yamlNodes,
+        plain,
+        translations,
+    })
 }
 exports.parseSheet = parseSheet
 
-function buildGraphs(yaml, yamlNodes, options) {
+function buildGraphs({ yamlSheet, yamlNodes, plain = true, translations }) {
     const builder = new GraphBuilder()
     for (const nodeData of yamlNodes) {
         builder.add(nodeData)
     }
     const graphs = builder.build()
-
-    const {
-        plain = true,
-    } = options
+        .flatMap(graph => {
+            const variants = [graph]
+            for (const { language, translateFn } of translations) {
+                const variant = graph.translate(language, translateFn)
+                variants.push(variant)
+            }
+            return variants
+        })
 
     return graphs.map(graph => ({
-        title: yaml.title + graph.suffix,
-        unit: yaml.unit,
-        width: yaml.width || DEFAULT_WIDTH,
-        height: yaml.height || DEFAULT_HEIGHT,
+        title: yamlSheet.title + graph.suffix,
+        unit: yamlSheet.unit,
+        width: yamlSheet.width || DEFAULT_WIDTH,
+        height: yamlSheet.height || DEFAULT_HEIGHT,
         nodes: graph.nodes.map(node => plain ? node.toJSON() : node),
         links: graph.links.map(link => plain ? link.toJSON() : link),
     }))

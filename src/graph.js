@@ -1,5 +1,8 @@
 const d3 = require('d3')
 const { callLinkPlugin } = require('./plugins')
+const {
+    clone,
+} = require('lodash')
 
 /**
  * A directed acyclic graph that has been parsed from YAML.
@@ -7,8 +10,15 @@ const { callLinkPlugin } = require('./plugins')
 class Graph {
 
     constructor({ nodes, suffix}) {
+        /**
+         * All nodes, not just top-level nodes.
+         */
         this.nodes = nodes
         this.suffix = suffix
+    }
+
+    get topLevelNodes() {
+        return this.nodes.filter(node => node.incomingLinks.length === 0)
     }
 
     colorNodes() {
@@ -45,6 +55,24 @@ class Graph {
 
     get links() {
         return this.nodes.flatMap(node => node.outgoingLinks)
+    }
+
+    clone() {
+        const nodes = cloneNodes(this.nodes)
+        return new Graph({
+            nodes,
+            suffix: this.suffix,
+        })
+    }
+
+    translate(language, translateFn) {
+        const variant = this.clone()
+        for (const node of variant.nodes) {
+            node.name = translateFn(node.name)
+            //node.originalLinks = node.originalLinks.map(linkName => translateFn(linkName))
+        }
+        variant.suffix += '_' + language
+        return variant
     }
 }
 exports.Graph = Graph
@@ -115,12 +143,11 @@ exports.Node = Node
 
 class Link {
 
-    constructor({ sourceNode, targetNode, value, color, nodeLookup }) {
+    constructor({ sourceNode, targetNode, value, color }) {
         this.sourceNode = sourceNode
         this.targetNode = targetNode
         this.explicitValue = value
         this.explicitColor = color
-        this.nodeLookup = nodeLookup
     }
 
     get color() {
@@ -182,18 +209,40 @@ class Link {
 }
 exports.Link = Link
 
+class Path {
+    constructor() {
+        this.path = []
+    }
+
+    push(node) {
+        const cyclic = this.path.includes(node)
+        this.path.push(node)
+        if (cyclic) {
+            const pathStr = this.toString()
+            this.path.pop()
+            throw Error(`Cyclic node: ${pathStr}`)
+        }
+    }
+
+    pop() {
+        return this.path.pop()
+    }
+
+    toString() {
+        return this.path.map(node => node.name).join(' → ')
+    }
+}
+
+/**
+ * Visits each node. If there are multiple paths to a node, it is visited once for each path.
+ */
 function visitNodeTree(node, fn) {
-    const path = []
+    const path = new Path()
     recurse(node)
 
     function recurse(node) {
-        const cyclic = path.includes(node)
         path.push(node)
-        if (cyclic) {
-            const pathStr = path.map(node => node.name).join(' → ')
-            throw Error(`Cyclic node: ${pathStr}`)
-        }
-        fn(node)
+        fn({ node, path })
         for (const link of node.outgoingLinks) {
             recurse(link.targetNode)
         }
@@ -201,3 +250,33 @@ function visitNodeTree(node, fn) {
     }
 }
 exports.visitNodeTree = visitNodeTree
+
+function cloneNodes(nodes) {
+    const cache = new Map()
+    const path = new Path()
+    return nodes.map(cloneNode)
+
+    function cloneNode(node) {
+        if (cache.has(node)) {
+            return cache.get(node)
+        }
+        path.push(node)
+        const nodeCopy = clone(node)
+        cache.set(node, nodeCopy)
+        nodeCopy.incomingLinks = node.incomingLinks.map(cloneLink)
+        nodeCopy.outgoingLinks = node.outgoingLinks.map(cloneLink)
+        path.pop()
+        return nodeCopy
+    }
+
+    function cloneLink(link) {
+        if (cache.has(link)) {
+            return cache.get(link)
+        }
+        const linkCopy = clone(link)
+        cache.set(link, linkCopy)
+        linkCopy.sourceNode = cloneNode(linkCopy.sourceNode)
+        linkCopy.targetNode = cloneNode(linkCopy.targetNode)
+        return linkCopy
+    }
+}

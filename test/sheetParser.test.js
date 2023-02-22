@@ -204,14 +204,15 @@ describe('sheetParser', function() {
         assert.deepEqual(graphsSync, graphsAsync, 'The sync and async variants should return the same result')
     })
 
-    it.skip('should translate sheets', () => {
+    it('should translate sheets', () => {
         const yaml = `
+        title: Sheet
         nodes:
             - name: Cat
               links:
                 - { to: Dog }
         translations:
-            - fi: finnish.json`
+            fi: finnish.json`
 
         const files = {
             'finnish.json': '{ "Cat": "Kissa", "Dog": "Koira" }'
@@ -221,5 +222,15 @@ describe('sheetParser', function() {
             getFile: fileName => files[fileName]
         })
         assert.lengthOf(graphs, 2)
+        assert.equal(graphs[0].title, 'Sheet')
+        assert.equal(graphs[1].title, 'Sheet_fi')
+
+        assert.equal(graphs[0].nodes[0].name, 'Cat')
+        assert.equal(graphs[0].nodes[1].name, 'Dog')
+        assert.equal(graphs[1].nodes[0].name, 'Kissa')
+        assert.equal(graphs[1].nodes[1].name, 'Koira')
+
+        assert.equal(graphs[1].links[0].source, 'Kissa')
+        assert.equal(graphs[1].links[0].target, 'Koira')
     })
 })
