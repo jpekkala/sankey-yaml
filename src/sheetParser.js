@@ -37,7 +37,7 @@ async function parseSheetAsync(text, options = {}) {
     if (yamlSheet.translations) {
         const promises = Object.entries(yamlSheet.translations).map(async ([language, fileName]) => {
             const file = await getFile(fileName)
-            const json = JSON.parse(file)
+            const json = JSON.parse(file.trim())
             return {
                 language,
                 translateFn: key => json[key] ?? key,
@@ -85,7 +85,7 @@ function parseSheet(text, options = {}) {
         }
         translations = Object.entries(yamlSheet.translations).map(([language, fileName]) => {
             const file = getFile(fileName)
-            const json = JSON.parse(file)
+            const json = JSON.parse(file.trim())
             return {
                 language,
                 translateFn: key => json[key] ?? key,
