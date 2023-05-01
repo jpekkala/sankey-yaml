@@ -78,8 +78,9 @@ class Graph {
 exports.Graph = Graph
 
 class Node {
-    constructor({ name, description, color, links, value }) {
+    constructor({ name, displayName, description, color, links, value }) {
         this.name = name
+        this.displayName = displayName || name
         this.description = description
         this.color = color
         this.explicitValue = value
@@ -133,6 +134,7 @@ class Node {
     toJSON() {
         return {
             name: this.name,
+            displayName: this.displayName,
             description: this.description,
             color: this.color,
             value: this.value,
