@@ -116,6 +116,14 @@ class Node {
         }
     }
 
+    get displayValue() {
+        const formattedValue = this.value.toFixed(2)
+        if (formattedValue.endsWith('.00')) {
+            return formattedValue.slice(0, -3)
+        }
+        return formattedValue
+    }
+
     get outgoingValue() {
         return this.outgoingLinks.reduce((sum, link) => {
             return sum + link.value
@@ -132,6 +140,7 @@ class Node {
              * D3 overwrites the value prop with 0 if it's negative. This prop is not modified by D3.
              */
             realValue: this.value,
+            displayValue: this.displayValue,
         }
     }
 
