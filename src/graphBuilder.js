@@ -123,6 +123,7 @@ function autovivifyNodes(nodeMap) {
             nodeMap.set(nodeName, new Node({
                 name: nodeName,
                 description: link.description,
+                displayName: link.displayName,
             }))
         }
     }
